@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>UzTube X — Clips, Anime OST, Motivation & Phonk Studio</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #040407; --surface: rgba(18, 18, 26, 0.78); --surface-2: rgba(30, 30, 44, 0.92);
+      --border: rgba(255, 255, 255, 0.09); --text: #f8f8fc; --muted: #9494a8;
+      --accent: #ff0044; --accent-2: #7928ca; --cyan: #00d4ff; --gold: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg); color: var(--text); overflow-x: hidden; padding-bottom: 145px;
+      position: relative; min-height: 100vh;
+    }
+
+    .bg-aurora { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+    .bg-aurora::before, .bg-aurora::after {
+      content: ""; position: absolute; width: 520px; height: 520px; border-radius: 50%;
+      filter: blur(115px); opacity: 0.24; animation: floatOrb 14s infinite alternate ease-in-out;
+    }
+    .bg-aurora::before { background: var(--accent); top: -120px; left: -100px; }
+    .bg-aurora::after { background: var(--accent-2); bottom: -140px; right: -100px; animation-delay: -7s; }
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(80px, 60px) scale(1.18); }
+    }
+
+    svg { width: 19px; height: 19px; fill: currentColor; flex-shrink: 0; transition: transform 0.25s ease; }
+
+    /* Header & Search */
+    header {
+      position: sticky; top: 0; z-index: 120; height: 64px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 0 20px; background: rgba(6, 6, 10, 0.85); backdrop-filter: blur(22px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 21px; font-weight: 900; display: flex; align-items: center; gap: 9px;
+      cursor: pointer; letter-spacing: -0.6px; flex-shrink: 0;
+    }
+    .logo-icon {
+      background: linear-gradient(135deg, #ff0044, #ff5500); color: #fff;
+      padding: 6px 9px; border-radius: 10px; display: flex; align-items: center;
+      box-shadow: 0 0 24px rgba(255, 0, 68, 0.55);
+    }
+    .logo-tag {
+      font-size: 9.5px; background: linear-gradient(135deg, #ff0044, #7928ca);
+      color: #fff; padding: 2px 7px; border-radius: 6px; font-weight: 800; letter-spacing: 0.5px;
+    }
+
+    .search-wrapper { position: relative; flex: 1; max-width: 540px; }
+    .search-box {
+      display: flex; width: 100%; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); border-radius: 26px; overflow: hidden; transition: all 0.28s ease;
+    }
+    .search-box:focus-within {
+      border-color: rgba(255, 0, 68, 0.75);
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 0 25px rgba(255, 0, 68, 0.25);
+    }
+    .search-box input {
+      flex: 1; min-width: 0; background: transparent; border: none; color: #fff;
+      padding: 10px 16px; outline: none; font-size: 14px;
+    }
+    .clear-search {
+      background: none; border: none; color: #999; padding: 0 8px; cursor: pointer; display: none; font-size: 16px;
+    }
+    .search-box button.search-btn {
+      background: rgba(255,255,255,0.06); border: none; color: #fff;
+      padding: 0 16px; cursor: pointer; display: flex; align-items: center; transition: 0.2s;
+    }
+    .search-box button.search-btn:hover { background: rgba(255, 0, 68, 0.3); }
+
+    /* Live Search Dropdown */
+    .search-dropdown {
+      display: none; position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+      background: rgba(16, 16, 24, 0.97); backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 0, 68, 0.35); border-radius: 18px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.85); max-height: 430px; overflow-y: auto; z-index: 250;
+      padding: 8px;
+    }
+    .search-dropdown.open { display: block; animation: fadeUp 0.18s ease; }
+    .dd-label { font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 6px 10px; font-weight: 700; letter-spacing: 0.6px; }
+    .dd-item {
+      display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 12px;
+      cursor: pointer; transition: 0.18s;
+    }
+    .dd-item:hover { background: rgba(255,255,255,0.09); }
+    .dd-thumb { width: 44px; height: 44px; border-radius: 9px; object-fit: cover; background: #000; flex-shrink: 0; }
+    .dd-badge {
+      font-size: 10px; padding: 2px 7px; border-radius: 6px; font-weight: 700; flex-shrink: 0;
+      background: rgba(255,0,68,0.2); color: #ff6b8b;
+    }
+    .dd-badge.music { background: rgba(121,40,202,0.28); color: #d8b4fe; }
+    .dd-badge.clip { background: rgba(0,212,255,0.22); color: #67e8f9; }
+
+    .header-actions { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+    .btn {
+      background: var(--surface-2); color: #fff; border: 1px solid var(--border); padding: 8px 15px;
+      border-radius: 22px; cursor: pointer; font-weight: 600; font-size: 13px;
+      transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .btn:hover { background: rgba(255,255,255,0.14); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
+    .btn:active { transform: scale(0.95); }
+    .btn-primary {
+      background: linear-gradient(135deg, #ff0044, #c80064); border: none;
+      box-shadow: 0 4px 20px rgba(255, 0, 68, 0.45);
+    }
+    .btn-cyan {
+      background: linear-gradient(135deg, #00d4ff, #0077ff); color: #000; border: none; font-weight: 800;
+      box-shadow: 0 4px 18px rgba(0, 212, 255, 0.4);
+    }
+    .btn-danger { background: rgba(239, 68, 68, 0.16); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+    .btn.liked, .btn.subscribed { background: #fff; color: #000; box-shadow: 0 0 18px rgba(255,255,255,0.35); }
+
+    /* Layout & Sidebar */
+    .layout { display: flex; min-height: calc(100vh - 64px); }
+    .sidebar {
+      width: 225px; padding: 16px 11px; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;
+      background: rgba(8, 8, 13, 0.45); backdrop-filter: blur(14px);
+    }
+    .side-title { font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 14px 14px 5px; font-weight: 700; letter-spacing: 0.9px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 13px; padding: 11px 14px;
+      border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500;
+      transition: all 0.2s ease; color: #c4c4d6;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; transform: translateX(3px); }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(255,0,68,0.25), rgba(121,40,202,0.14));
+      border-left: 3px solid var(--accent); font-weight: 700; color: #fff;
+    }
+    .divider { height: 1px; background: var(--border); margin: 8px 8px; }
+
+    .main { flex: 1; padding: 22px 26px; max-width: 1600px; margin: 0 auto; width: 100%; min-width: 0; }
+
+    /* Genre & Tag Chips */
+    .genre-bar {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; scrollbar-width: none;
+    }
+    .genre-bar::-webkit-scrollbar { display: none; }
+    .genre-chip {
+      background: var(--surface-2); color: #d5d5e2; border: 1px solid var(--border);
+      padding: 8px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+      white-space: nowrap; transition: 0.2s;
+    }
+    .genre-chip:hover { background: rgba(255,255,255,0.14); color: #fff; transform: translateY(-1px); }
+    .genre-chip.active {
+      background: linear-gradient(135deg, #ff0044, #7928ca); color: #fff; border-color: transparent;
+      box-shadow: 0 4px 16px rgba(255,0,68,0.4);
+    }
+
+    .tag-sec-label { font-size: 11.5px; color: var(--muted); font-weight: 700; margin: 8px 0 6px; letter-spacing: 0.4px; }
+    .viral-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none;
+    }
+    .viral-row::-webkit-scrollbar { display: none; }
+    .viral-tag {
+      background: rgba(255, 0, 68, 0.12); color: #ff85a2; border: 1px solid rgba(255, 0, 68, 0.32);
+      padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; transition: 0.2s;
+    }
+    .viral-tag:hover { background: #ff0044; color: #fff; box-shadow: 0 0 16px rgba(255,0,68,0.5); }
+
+    .anime-tag {
+      background: rgba(121, 40, 202, 0.16); color: #d8b4fe; border: 1px solid rgba(121, 40, 202, 0.42);
+      padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; transition: 0.2s;
+    }
+    .anime-tag:hover { background: linear-gradient(135deg, #7928ca, #ff0044); color: #fff; box-shadow: 0 0 16px rgba(121,40,202,0.6); }
+
+    .motiv-tag {
+      background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.38);
+      padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; transition: 0.2s;
+    }
+    .motiv-tag:hover { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; box-shadow: 0 0 16px rgba(245,158,11,0.55); }
+
+    /* Video Clip Theater Box inside Music */
+    .clip-theater {
+      display: none; background: rgba(12, 12, 18, 0.92); border: 1px solid rgba(0, 212, 255, 0.4);
+      border-radius: 20px; padding: 16px; margin: 14px 0 22px;
+      box-shadow: 0 15px 40px rgba(0, 212, 255, 0.16), 0 0 30px rgba(255, 0, 68, 0.15);
+      animation: fadeUp 0.28s ease;
+    }
+    .clip-theater.open { display: block; }
+    .clip-video-wrap {
+      position: relative; width: 100%; max-height: 520px; background: #000; border-radius: 14px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .clip-video-wrap video { width: 100%; max-height: 520px; display: block; margin: 0 auto; }
+    .clip-header {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;
+    }
+
+    /* Music & Clip Cards Grid */
+    .music-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 18px; margin-top: 12px; }
+    .music-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 13px; cursor: pointer; transition: all 0.25s ease; animation: fadeUp 0.35s ease both;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .music-card:hover {
+      transform: translateY(-5px); border-color: rgba(255,0,68,0.65);
+      box-shadow: 0 12px 28px rgba(255,0,68,0.25);
+    }
+    .music-card.playing {
+      border-color: #ff0044;
+      background: linear-gradient(160deg, rgba(255,0,68,0.18), rgba(121,40,202,0.16));
+      box-shadow: 0 0 28px rgba(255,0,68,0.3);
+    }
+    .music-cover {
+      position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; background: #111;
+    }
+    .music-cover.is-clip { aspect-ratio: 16/10; }
+    .music-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+    .music-card:hover .music-cover img { transform: scale(1.06); }
+    .clip-badge-card {
+      position: absolute; top: 8px; left: 8px;
+      background: linear-gradient(135deg, #00d4ff, #7928ca); color: #fff;
+      font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px;
+      box-shadow: 0 2px 10px rgba(0,212,255,0.5);
+    }
+    .music-play-btn {
+      position: absolute; bottom: 10px; right: 10px; width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, #ff0044, #7928ca); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 18px rgba(255,0,68,0.65); transition: 0.2s;
+    }
+
+    /* =======================================================
+       MAXSUS NEON STUDIO AUDIO PLEYER (EFFEKTlAR BILAN)
+       ======================================================= */
+    .audio-studio-bar {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 190;
+      background: rgba(10, 10, 16, 0.96); backdrop-filter: blur(26px);
+      border-top: 1px solid rgba(255, 0, 68, 0.45);
+      padding: 10px 22px 12px; flex-direction: column; gap: 8px;
+      box-shadow: 0 -10px 35px rgba(255, 0, 68, 0.16), 0 -4px 20px rgba(0,0,0,0.85);
+    }
+    .audio-studio-bar.active { display: flex; animation: fadeUp 0.25s ease; }
+
+    .progress-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+    .time-txt { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; width: 34px; text-align: center; }
+    .neon-range {
+      -webkit-appearance: none; appearance: none; height: 5px; border-radius: 99px;
+      background: rgba(255,255,255,0.14); outline: none; cursor: pointer; flex: 1;
+      transition: height 0.15s ease;
+    }
+    .neon-range:hover { height: 7px; }
+    .neon-range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; border: 2.5px solid #ff0044; box-shadow: 0 0 12px #ff0044; cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .neon-range::-webkit-slider-thumb:hover { transform: scale(1.25); }
+
+    .player-main-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .audio-info { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+    .cover-disc-wrap { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
+    .cover-disc-wrap img {
+      width: 100%; height: 100%; border-radius: 12px; object-fit: cover;
+      border: 1.5px solid rgba(255,0,68,0.5); transition: transform 0.3s ease;
+    }
+    .audio-studio-bar.is-playing .cover-disc-wrap img {
+      box-shadow: 0 0 18px rgba(255, 0, 68, 0.55);
+    }
+
+    .eq-bars { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-left: 4px; flex-shrink: 0; }
+    .eq-bars span {
+      width: 3px; height: 5px; border-radius: 3px;
+      background: linear-gradient(to top, #ff0044, #00d4ff);
+      transition: height 0.2s ease;
+    }
+    .audio-studio-bar.is-playing .eq-bars span:nth-child(1) { animation: eqBounce 0.55s infinite alternate ease-in-out; }
+    .audio-studio-bar.is-playing .eq-bars span:nth-child(2) { animation: eqBounce 0.4s infinite alternate ease-in-out 0.15s; }
+    .audio-studio-bar.is-playing .eq-bars span:nth-child(3) { animation: eqBounce 0.65s infinite alternate ease-in-out 0.3s; }
+    .audio-studio-bar.is-playing .eq-bars span:nth-child(4) { animation: eqBounce 0.45s infinite alternate ease-in-out 0.1s; }
+    @keyframes eqBounce {
+      0% { height: 4px; }
+      100% { height: 18px; }
+    }
+
+    .center-controls { display: flex; align-items: center; gap: 12px; }
+    .ctrl-icon-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: #fff;
+      width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+    .ctrl-icon-btn:hover { background: rgba(255,255,255,0.16); transform: scale(1.08); }
+    .ctrl-icon-btn:active { transform: scale(0.9); }
+
+    .play-pause-hero {
+      width: 46px; height: 46px; border-radius: 50%; border: none; color: #fff; cursor: pointer;
+      background: linear-gradient(135deg, #ff0044, #7928ca);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 22px rgba(255, 0, 68, 0.55);
+      transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.4), box-shadow 0.25s ease;
+    }
+    .play-pause-hero:hover { transform: scale(1.1); box-shadow: 0 0 30px rgba(255, 0, 68, 0.85); }
+    .play-pause-hero:active { transform: scale(0.88); }
+    .audio-studio-bar.is-playing .play-pause-hero {
+      animation: neonPulse 1.6s infinite;
+    }
+    @keyframes neonPulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 0, 68, 0.65); }
+      70% { box-shadow: 0 0 0 13px rgba(255, 0, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 0, 68, 0); }
+    }
+
+    .volume-box { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
+    .vol-pct {
+      font-size: 11px; font-weight: 800; color: #ff7597; min-width: 34px; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .vol-slider-wrap { width: 105px; display: flex; align-items: center; }
+
+    /* Toolbar & Grid */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .sort-select {
+      background: var(--surface-2); color: #fff; border: 1px solid var(--border);
+      padding: 8px 14px; border-radius: 12px; font-size: 13px; outline: none; cursor: pointer;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 24px; }
+    .card { cursor: pointer; animation: fadeUp 0.4s ease both; }
+    .thumb-wrap {
+      position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
+      border-radius: 16px; overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border);
+      transition: all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .card:hover .thumb-wrap {
+      transform: translateY(-5px) scale(1.015);
+      box-shadow: 0 14px 34px rgba(255, 0, 68, 0.26), 0 8px 20px rgba(0,0,0,0.75);
+      border-color: rgba(255, 0, 68, 0.65);
+    }
+    .thumb-wrap img, .thumb-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.45s ease; }
+    .play-hover {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.28); display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+    }
+    .card:hover .play-hover { opacity: 1; }
+    .play-circle {
+      width: 46px; height: 46px; border-radius: 50%; background: rgba(255,0,68,0.92);
+      display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(255,0,68,0.85);
+    }
+    .duration-badge {
+      position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px);
+      padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    }
+    .short-tag {
+      position: absolute; top: 8px; left: 8px; background: linear-gradient(135deg, #ff0044, #7928ca);
+      padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800;
+    }
+    .card-info { display: flex; gap: 12px; }
+    .avatar {
+      width: 39px; height: 39px; border-radius: 50%; background: linear-gradient(135deg, #ff0044, #7928ca);
+      display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; font-size: 15px;
+      box-shadow: 0 0 16px rgba(255, 0, 68, 0.35); border: 1.5px solid rgba(255,255,255,0.22);
+    }
+    .card-title { font-size: 15px; font-weight: 700; line-height: 1.38; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-meta { font-size: 12.5px; color: var(--muted); }
+
+    /* Obunalar & Channels */
+    .subs-bar {
+      display: flex; gap: 14px; overflow-x: auto; padding: 14px; margin-bottom: 22px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px; scrollbar-width: none;
+    }
+    .sub-story { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; min-width: 72px; }
+    .sub-ring { padding: 2.5px; border-radius: 50%; background: linear-gradient(135deg, #ff0044, #7928ca, #00d4ff); }
+    .sub-story-name { font-size: 11.5px; font-weight: 600; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 16px; }
+    .channel-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+    }
+
+    /* Watch Page */
+    .watch-layout { display: grid; grid-template-columns: 1fr 375px; gap: 24px; }
+    .watch-layout.theater { grid-template-columns: 1fr; }
+    .player-wrap { position: relative; }
+    .ambient-glow {
+      position: absolute; inset: -5px;
+      background: linear-gradient(135deg, rgba(255,0,68,0.4), rgba(121,40,202,0.35), rgba(0,212,255,0.22));
+      filter: blur(38px); z-index: 0; pointer-events: none; border-radius: 22px;
+    }
+    .player-box { position: relative; z-index: 1; background: #000; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); }
+    .player-box video { width: 100%; max-height: 75vh; display: block; }
+    .watch-title { font-size: 20px; font-weight: 800; margin: 15px 0 12px; }
+    .watch-bar {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    }
+    .channel-box { display: flex; align-items: center; gap: 11px; cursor: pointer; }
+    .action-pills { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+
+    /* Comments */
+    .comments-sec { margin-top: 20px; }
+    .comment-form { display: flex; gap: 8px; margin: 12px 0 20px; }
+    .comment-form input {
+      flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      color: #fff; padding: 11px 14px; outline: none; font-size: 14px;
+    }
+    .comment-item { display: flex; gap: 10px; margin-bottom: 12px; }
+    .comment-body { background: var(--surface); padding: 11px 14px; border-radius: 14px; flex: 1; border: 1px solid var(--border); }
+    .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .comment-author { font-size: 13px; font-weight: 700; }
+    .comment-text { font-size: 13.5px; color: #e6e6f0; }
+    .del-comment { background: none; border: none; color: #888; cursor: pointer; font-size: 12px; }
+
+    .rec-item { display: flex; gap: 11px; margin-bottom: 12px; cursor: pointer; padding: 6px; border-radius: 12px; }
+    .rec-thumb { width: 155px; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; background: #000; flex-shrink: 0; }
+    .rec-thumb img, .rec-thumb video { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Studio & Banner */
+    .banner {
+      background: linear-gradient(120deg, rgba(255,0,68,0.22), rgba(121,40,202,0.18), rgba(20,20,28,0.9));
+      padding: 22px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 14px; margin-bottom: 20px; border: 1px solid var(--border);
+    }
+    .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (min-width: 768px) { .stats-row { grid-template-columns: repeat(4, 1fr); } }
+    .stat-card { background: var(--surface); padding: 16px; border-radius: 15px; border: 1px solid var(--border); }
+    .stat-val { font-size: 24px; font-weight: 900; margin-top: 4px; background: linear-gradient(90deg, #fff, #ff7597); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .table-wrap { width: 100%; overflow-x: auto; border-radius: 15px; border: 1px solid var(--border); }
+    .studio-table { width: 100%; border-collapse: collapse; background: var(--surface); min-width: 480px; }
+    .studio-table th, .studio-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+
+    /* Shorts */
+    .shorts-feed { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+    .short-card {
+      width: 100%; max-width: 360px; height: 615px; background: #000; border-radius: 20px;
+      position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .short-card video { width: 100%; height: 100%; object-fit: cover; }
+    .short-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; background: linear-gradient(transparent, rgba(0,0,0,0.95)); }
+
+    /* Modals */
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.84); backdrop-filter: blur(10px);
+      justify-content: center; align-items: center; z-index: 200; padding: 14px;
+    }
+    .modal-box {
+      background: #14141c; padding: 22px; border-radius: 20px; width: 100%; max-width: 420px;
+      display: flex; flex-direction: column; gap: 13px; border: 1px solid rgba(255,255,255,0.12);
+    }
+    .drop-zone {
+      border: 2px dashed rgba(255, 0, 64, 0.45); border-radius: 15px; padding: 20px 14px;
+      text-align: center; cursor: pointer; background: rgba(255,0,64,0.05);
+    }
+    .thumb-zone {
+      border: 1px dashed rgba(255,255,255,0.22); border-radius: 13px; padding: 13px;
+      text-align: center; cursor: pointer; background: rgba(255,255,255,0.03); font-size: 13px; color: #ccc;
+    }
+    .modal-box input[type="text"], .modal-box select {
+      padding: 12px 14px; border-radius: 12px; border: 1px solid #30303e;
+      background: #0b0b10; color: #fff; font-size: 14px; outline: none;
+    }
+    .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14.5px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; top: 76px; left: 50%; transform: translateX(-50%) translateY(-14px);
+      background: linear-gradient(135deg, #ff0044, #7928ca); color: #fff; padding: 10px 18px;
+      border-radius: 14px; font-size: 13px; font-weight: 600; z-index: 300; opacity: 0;
+      pointer-events: none; transition: all 0.28s ease; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Mobile Bottom Nav */
+    .bottom-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+      background: rgba(10,10,15,0.95); backdrop-filter: blur(16px); border-top: 1px solid var(--border);
+      justify-content: space-around; align-items: center; z-index: 150; padding: 0 4px;
+    }
+    .b-item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); cursor: pointer; flex: 1; }
+    .b-item.active { color: #ff2e63; font-weight: 700; }
+
+    @media (max-width: 960px) { .watch-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .bottom-nav { display: flex; }
+      .studio-btn-top { display: none; }
+      header { padding: 0 12px; height: 58px; gap: 8px; }
+      .logo { font-size: 18px; gap: 6px; }
+      .logo-tag { display: none; }
+      .search-box input { padding: 8px 12px; font-size: 13px; }
+      .search-dropdown { left: -45px; right: -45px; }
+      .btn { padding: 7px 12px; font-size: 12.5px; }
+      .btn-text-hide { display: none; }
+      .main { padding: 14px 12px; }
+      .grid { grid-template-columns: 1fr; gap: 18px; }
+      .music-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .audio-studio-bar.active { bottom: 62px; padding: 8px 12px; }
+      .vol-slider-wrap { width: 65px; }
+      .vol-pct { display: none; }
+      .short-card { height: calc(100dvh - 140px); min-height: 480px; }
+      .watch-bar { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-aurora"></div>
+
+<header>
+  <div class="logo" onclick="switchView('home')">
+    <span class="logo-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+    UzTube <span class="logo-tag">NEON</span>
+  </div>
+
+  <!-- Aqlli Jonli Qidiruv Qatori -->
+  <div class="search-wrapper" id="searchWrapper">
+    <div class="search-box">
+      <input type="text" id="searchInput" autocomplete="off" placeholder="Yozing: Jujutsu Kaisen, Naruto, Royalty, Eminem..." oninput="onSmartSearch()" onfocus="onSmartSearch()" />
+      <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✕</button>
+      <button class="search-btn" onclick="onSmartSearch()"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
+    </div>
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn studio-btn-top" onclick="switchView('studio')">
+      <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> Studio
+    </button>
+    <button class="btn" id="profileBtn" onclick="openProfileModal()">Kirish</button>
+    <button class="btn btn-primary" onclick="openUploadModal()">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> <span class="btn-text-hide">Video joylash</span>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="nav-item active" id="navHome" onclick="switchView('home')">
+      <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Bosh sahifa
+    </div>
+    <div class="nav-item" id="navShorts" onclick="switchView('shorts')">
+      <svg viewBox="0 0 24 24"><path d="M17.77 10.32c-.77-.32-1.2-.5-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L6 6.94c-1.29.68-2.07 2.04-2 3.49.07 1.42.93 2.67 2.22 3.25.03.01 1.2.5 1.2.5L6 14.93c-1.83.97-2.53 3.24-1.56 5.07.97 1.83 3.24 2.53 5.07 1.56l8.5-4.5c1.29-.68 2.06-2.04 1.99-3.49-.07-1.42-.94-2.68-2.23-3.25z"/></svg> Shorts
+    </div>
+    <div class="nav-item" id="navMusic" onclick="switchView('music')">
+      <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> Kliplar & Musiqa
+    </div>
+    <div class="nav-item" id="navSubs" onclick="switchView('subs')">
+      <svg viewBox="0 0 24 24"><path d="M20 8H4V6h16v2zm-2-6H6v2h12V2zm4 10v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2h16c1.1 0 2 .9 2 2zm-6 4l-6-3.27v6.53L16 16z"/></svg> Obunalar
+    </div>
+    <div class="divider"></div>
+    <div class="side-title">Kutubxona</div>
+    <div class="nav-item" id="navLiked" onclick="switchView('liked')">
+      <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> Yoqtirilganlar
+    </div>
+    <div class="nav-item" id="navSaved" onclick="switchView('saved')">
+      <svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Saqlanganlar
+    </div>
+    <div class="nav-item" id="navStudio" onclick="switchView('studio')">
+      <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg> UzTube Studio
+    </div>
+  </aside>
+
+  <main class="main" id="mainArea">Yuklanmoqda...</main>
+</div>
+
+<!-- Mobil Pastki Menyu -->
+<nav class="bottom-nav">
+  <div class="b-item active" id="bHome" onclick="switchView('home')"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Asosiy</div>
+  <div class="b-item" id="bShorts" onclick="switchView('shorts')"><svg viewBox="0 0 24 24"><path d="M17.77 10.32c-.77-.32-1.2-.5-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L6 6.94c-1.29.68-2.07 2.04-2 3.49.07 1.42.93 2.67 2.22 3.25.03.01 1.2.5 1.2.5L6 14.93c-1.83.97-2.53 3.24-1.56 5.07.97 1.83 3.24 2.53 5.07 1.56l8.5-4.5c1.29-.68 2.06-2.04 1.99-3.49-.07-1.42-.94-2.68-2.23-3.25z"/></svg>Shorts</div>
+  <div class="b-item" id="bMusic" onclick="switchView('music')"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>Kliplar</div>
+  <div class="b-item" id="bSubs" onclick="switchView('subs')"><svg viewBox="0 0 24 24"><path d="M20 8H4V6h16v2zm-2-6H6v2h12V2zm4 10v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2h16c1.1 0 2 .9 2 2zm-6 4l-6-3.27v6.53L16 16z"/></svg>Obunalar</div>
+  <div class="b-item" id="bStudio" onclick="switchView('studio')"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Studio</div>
+</nav>
+
+<!-- =========================================================
+     MAXSUS NEON STUDIO AUDIO PLEYER (PAUZA & OVOZ EFFEKTLARI)
+     ========================================================= -->
+<div class="audio-studio-bar" id="audioBar">
+  <audio id="globalAudio"></audio>
+
+  <div class="progress-row">
+    <span class="time-txt" id="curTime">0:00</span>
+    <input type="range" class="neon-range" id="seekSlider" min="0" max="100" value="0" step="0.1" oninput="seekAudio(this.value)" />
+    <span class="time-txt" id="durTime">0:30</span>
+  </div>
+
+  <div class="player-main-row">
+    <div class="audio-info">
+      <div class="cover-disc-wrap">
+        <img id="playerCover" src="" alt="cover" />
+      </div>
+      <div style="min-width:0;">
+        <div id="playerTitle" style="font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Trek nomi</div>
+        <div id="playerArtist" class="card-meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ijrochi</div>
+      </div>
+      <div class="eq-bars"><span></span><span></span><span></span><span></span></div>
+    </div>
+
+    <div class="center-controls">
+      <button class="ctrl-icon-btn" onclick="prevTrack()" title="Oldingi trek">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="play-pause-hero" id="heroPlayBtn" onclick="togglePlayPause()" title="Play / Pauza">
+        <svg id="heroPlayIcon" viewBox="0 0 24 24" style="width:24px; height:24px;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="ctrl-icon-btn" onclick="nextTrack()" title="Keyingi trek">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+
+    <div class="volume-box">
+      <button class="ctrl-icon-btn" id="muteBtn" onclick="toggleMute()" title="Ovozni o'chirish / yoqish">
+        <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <div class="vol-slider-wrap">
+        <input type="range" class="neon-range" id="volSlider" min="0" max="1" step="0.01" value="0.85" oninput="changeVolume(this.value)" />
+      </div>
+      <span class="vol-pct" id="volPct">85%</span>
+      <button class="ctrl-icon-btn" onclick="closeAudioPlayer()" title="Yopish" style="margin-left:4px;">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- Video Yuklash Oynasi -->
+<div class="modal" id="uploadModal">
+  <div class="modal-box">
+    <h3 style="font-size:18px;">Video yoki Musiqa joylash</h3>
+    <div class="drop-zone" onclick="document.getElementById('vidFile').click()">
+      <svg viewBox="0 0 24 24" style="width:30px; height:30px; color:#ff0044; margin-bottom:6px;"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+      <div id="vidFileName" style="font-weight:700; font-size:14px;">1. Video yoki Qo‘shiqni tanlang</div>
+      <div style="font-size:11.5px; color:#888; margin-top:3px;">Gorizontal yoki Shorts (9:16) avtomatik aniqlanadi</div>
+      <input type="file" id="vidFile" accept="video/*,audio/*" hidden onchange="onVideoSelected(this)" />
+    </div>
+    <input type="text" id="vidTitle" placeholder="2. Tagiga yozing (nomi)..." />
+    <select id="vidGenre">
+      <option value="Barchasi">Janrni tanlang (ixtiyoriy)</option>
+      <option value="Anime OST">Anime OST & Openings</option>
+      <option value="Phonk & Montagem">Rek Phonk & Montagem</option>
+      <option value="Motivation">Motivation & Gym</option>
+      <option value="Viral Edit Hits">Royalty / Golden Brown / Edit Hits</option>
+      <option value="O'zbekcha">O'zbekcha & Milliy</option>
+    </select>
+    <div class="thumb-zone" onclick="document.getElementById('thumbFile').click()">
+      <span id="thumbFileName">3. Ustiga rasm qo‘shish (ixtiyoriy)</span>
+      <input type="file" id="thumbFile" accept="image/*" hidden onchange="onThumbSelected(this)" />
+    </div>
+    <div id="uploadStatus" style="font-size:13px; color:#4ade80; text-align:center;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:4px;">
+      <button class="btn" onclick="closeModals()">Bekor qilish</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="uploadVideo()">Joylash</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profil oynasi -->
+<div class="modal" id="profileModal">
+  <div class="modal-box">
+    <h3>Kanalingiz nomi</h3>
+    <input type="text" id="channelNameInput" placeholder="Masalan: Jasur Edits" />
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" onclick="closeModals()">Yopish</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://kabilrywkddalgtdpubz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_YG39ilgzJJwkvtOEGKjxwA_hwDUH5jQ';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // 1. Rek & Edit Xitlar
+  const VIRAL_EDIT_TRACKS = [
+    { label: 'Royalty (Edit)', query: 'Egzod Maestro Chives Royalty' },
+    { label: 'Golden Brown', query: 'The Stranglers Golden Brown' },
+    { label: 'Ainsi Bas La Vida', query: 'Indila Ainsi bas la vida' },
+    { label: 'Undress Rehearsal', query: 'Undress Rehearsal phonk' },
+    { label: 'Yatashi - Funk Power', query: 'Yatashi Funk' },
+    { label: 'Memory Reboot', query: 'VOJ Narvent Memory Reboot' },
+    { label: 'Metamorphosis', query: 'INTERWORLD METAMORPHOSIS' },
+    { label: 'Murder In My Mind', query: 'Kordhell Murder In My Mind' },
+    { label: 'Close Eyes', query: 'DVRST Close Eyes' },
+    { label: 'Montagem Mysterious', query: 'Montagem Mysterious Game' }
+  ];
+
+  // 2. Barcha Anime OST & Openings
+  const ANIME_HITS = [
+    { label: 'Jujutsu Kaisen - Specialz', query: 'King Gnu SPECIALZ' },
+    { label: 'Kaikai Kitan (Gojo)', query: 'Eve Kaikai Kitan' },
+    { label: 'Where Our Blue Is', query: 'Tatsuya Kitani Where Our Blue Is' },
+    { label: 'Naruto - Blue Bird', query: 'Ikimonogakari Blue Bird' },
+    { label: 'Naruto - Silhouette', query: 'KANA-BOON Silhouette' },
+    { label: 'Pain Theme (Girei)', query: 'Yasuharu Takanashi Girei' },
+    { label: 'Tokyo Ghoul - Unravel', query: 'TK from Ling tosite sigure unravel' },
+    { label: 'AOT - Ashes on The Fire', query: 'KOHTA YAMAMOTO Ashes on The Fire' },
+    { label: 'AOT - Akuma no Ko', query: 'Ai Higuchi Akuma no Ko' },
+    { label: 'Tokyo Revengers - Cry Baby', query: 'Official HIGE DANdism Cry Baby' },
+    { label: 'Demon Slayer - Gurenge', query: 'LiSA Gurenge' },
+    { label: 'Chainsaw Man - Kick Back', query: 'Kenshi Yonezu KICK BACK' },
+    { label: 'Suzume Theme', query: 'RADWIMPS Suzume' }
+  ];
+
+  // 3. Motivatsiya & Gym Qo'shiqlari
+  const MOTIVATION_HITS = [
+    { label: 'Till I Collapse (Eminem)', query: 'Eminem Till I Collapse' },
+    { label: 'Lose Yourself', query: 'Eminem Lose Yourself' },
+    { label: 'Believer (Imagine Dragons)', query: 'Imagine Dragons Believer' },
+    { label: 'Remember The Name', query: 'Fort Minor Remember The Name' },
+    { label: 'Eye of the Tiger', query: 'Survivor Eye of the Tiger' },
+    { label: 'Can’t Hold Us', query: 'Macklemore Ryan Lewis Can t Hold Us' },
+    { label: 'Unstoppable (Sia)', query: 'Sia Unstoppable' },
+    { label: 'Hall of Fame', query: 'The Script Hall of Fame' },
+    { label: 'Stronger (Kanye)', query: 'Kanye West Stronger' },
+    { label: 'Centuries', query: 'Fall Out Boy Centuries' }
+  ];
+
+  const MUSIC_GENRES = [
+    { name: '🎬 Musiqiy Kliplar', query: 'music video phonk anime imagine dragons', isClipMode: true },
+    { name: '🎌 Barcha Anime OST', query: 'anime opening soundtrack jujutsu kaisen naruto' },
+    { name: '💪 Motivatsiya & Gym', query: 'Eminem Till I Collapse Imagine Dragons workout motivation' },
+    { name: '🔥 Rek Phonk & Montagem', query: 'phonk kordhell interworld dvrst yatashi montagem' },
+    { name: '👑 Viral Edit Hits', query: 'Egzod Royalty Indila Ainsi bas la vida Memory Reboot' },
+    { name: '🇺🇿 O‘zbekcha', query: 'uzbek music konsta shoxrux' },
+    { name: '🎤 Hip-Hop & Rap', query: 'hip hop rap eminem travis scott' },
+    { name: '🎧 Electronic & EDM', query: 'edm electronic alan walker marshmello' },
+    { name: '🎸 Rock & Metal', query: 'rock metal linkin park metallica' }
+  ];
+
+  const ICONS = {
+    like: `<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>`,
+    save: `<svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>`,
+    share: `<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>`,
+    user: `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`,
+    check: `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`,
+    theater: `<svg viewBox="0 0 24 24"><path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"/></svg>`,
+    play: `<svg viewBox="0 0 24 24" style="color:#fff; width:22px; height:22px;"><path d="M8 5v14l11-7z"/></svg>`,
+    pause: `<svg viewBox="0 0 24 24" style="color:#fff; width:24px; height:24px;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`,
+    volHigh: `<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>`,
+    volMute: `<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>`
+  };
+
+  let allVideos = [];
+  let subCounts = {};
+  let globalTracks = [];
+  let instantTracks = [];
+  let currentPlaylist = [];
+  let currentTrackIndex = -1;
+  let lastVolume = 0.85;
+
+  let selectedGenre = '🎬 Musiqiy Kliplar';
+  let currentView = 'home';
+  let sortBy = 'newest';
+  let theaterMode = false;
+  let activeVideo = null;
+  let activeChannel = '';
+  let searchTimer = null;
+
+  let userChannel = localStorage.getItem('uztube_channel') || '';
+  let subs = JSON.parse(localStorage.getItem('uztube_subs') || '[]');
+  let likedIds = JSON.parse(localStorage.getItem('uztube_liked') || '[]');
+  let savedIds = JSON.parse(localStorage.getItem('uztube_saved') || '[]');
+  let viewedIds = JSON.parse(localStorage.getItem('uztube_viewed') || '[]');
+
+  // Audio Studio Eventlari
+  const audioEl = document.getElementById('globalAudio');
+  audioEl.volume = 0.85;
+
+  audioEl.addEventListener('play', () => {
+    document.getElementById('audioBar').classList.add('is-playing');
+    document.getElementById('heroPlayBtn').innerHTML = ICONS.pause;
+  });
+
+  audioEl.addEventListener('pause', () => {
+    document.getElementById('audioBar').classList.remove('is-playing');
+    document.getElementById('heroPlayBtn').innerHTML = ICONS.play;
+  });
+
+  audioEl.addEventListener('ended', () => nextTrack());
+
+  audioEl.addEventListener('timeupdate', () => {
+    const cur = audioEl.currentTime || 0;
+    const dur = audioEl.duration || 30;
+    const pct = (cur / dur) * 100;
+    const slider = document.getElementById('seekSlider');
+    slider.value = pct;
+    slider.style.background = `linear-gradient(90deg, #ff0044 ${pct}%, #7928ca ${pct}%, rgba(255,255,255,0.14) ${pct}%)`;
+    document.getElementById('curTime').textContent = formatDuration(cur);
+    document.getElementById('durTime').textContent = formatDuration(dur);
+  });
+
+  function togglePlayPause() {
+    if (!audioEl.src) return;
+    if (audioEl.paused) audioEl.play();
+    else audioEl.pause();
+  }
+
+  function seekAudio(pct) {
+    if (!audioEl.duration) return;
+    audioEl.currentTime = (pct / 100) * audioEl.duration;
+  }
+
+  function changeVolume(val) {
+    const v = parseFloat(val);
+    audioEl.volume = v;
+    audioEl.muted = v === 0;
+    if (v > 0) lastVolume = v;
+    updateVolumeUI(v);
+  }
+
+  function toggleMute() {
+    if (audioEl.muted || audioEl.volume === 0) {
+      audioEl.muted = false;
+      audioEl.volume = lastVolume || 0.85;
+      document.getElementById('volSlider').value = audioEl.volume;
+      updateVolumeUI(audioEl.volume);
+    } else {
+      audioEl.muted = true;
+      document.getElementById('volSlider').value = 0;
+      updateVolumeUI(0);
+    }
+  }
+
+  function updateVolumeUI(v) {
+    const pct = Math.round(v * 100);
+    document.getElementById('volPct').textContent = pct + '%';
+    const slider = document.getElementById('volSlider');
+    slider.style.background = `linear-gradient(90deg, #00d4ff ${pct}%, #ff0044 ${pct}%, rgba(255,255,255,0.14) ${pct}%)`;
+    document.getElementById('volIcon').innerHTML = pct === 0 ? ICONS.volMute : ICONS.volHigh;
+  }
+
+  // Klip yoki Audio ijro etish
+  async function playFromList(list, idx) {
+    if (!list || !list[idx]) return;
+    currentPlaylist = list;
+    currentTrackIndex = idx;
+    const item = list[idx];
+
+    // Agar bu itemning o'zi musicVideo bo'lsa, darhol klip pleyerda ochamiz
+    if (item.kind === 'music-video' && item.previewUrl) {
+      openClipTheater(item.previewUrl, item.trackName, item.artistName);
+      return;
+    }
+
+    // Avval audioni qo'yamiz
+    const bar = document.getElementById('audioBar');
+    document.getElementById('playerCover').src = item.artworkUrl100.replace('100x100', '300x300');
+    document.getElementById('playerTitle').textContent = item.trackName;
+    document.getElementById('playerArtist').textContent = `${item.artistName} • ${item.primaryGenreName || ''}`;
+    audioEl.src = item.previewUrl;
+    bar.classList.add('active');
+    updateVolumeUI(audioEl.muted ? 0 : audioEl.volume);
+    audioEl.play();
+    if (currentView === 'music') renderMusicGrid();
+
+    // Fon rejimida shu qo'shiqning rasmiy klipini (musicVideo) ham qidiramiz
+    try {
+      const mvRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(item.trackName + ' ' + item.artistName)}&entity=musicVideo&limit=1`);
+      const mvJson = await mvRes.json();
+      const mv = (mvJson.results || []).find(x => x.previewUrl);
+      if (mv && currentPlaylist[currentTrackIndex]?.trackId === item.trackId) {
+        openClipTheater(mv.previewUrl, mv.trackName || item.trackName, mv.artistName || item.artistName);
+      }
+    } catch (e) {}
+  }
+
+  function openClipTheater(videoUrl, title, artist) {
+    // Agar musiqa sahifasida bo'lmasak, musiqa sahifasiga o'tkazamiz
+    if (currentView !== 'music') {
+      switchView('music', '', true);
+    }
+    audioEl.pause();
+    document.getElementById('audioBar').classList.remove('active');
+
+    setTimeout(() => {
+      const box = document.getElementById('clipTheaterBox');
+      const vid = document.getElementById('clipVideoEl');
+      if (!box || !vid) return;
+      document.getElementById('clipTitle').textContent = title;
+      document.getElementById('clipArtist').textContent = artist;
+      vid.src = videoUrl;
+      box.classList.add('open');
+      vid.play();
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
+  }
+
+  function closeClipTheater() {
+    const box = document.getElementById('clipTheaterBox');
+    const vid = document.getElementById('clipVideoEl');
+    if (vid) { vid.pause(); vid.src = ''; }
+    if (box) box.classList.remove('open');
+  }
+
+  function nextTrack() {
+    if (currentPlaylist.length === 0) return;
+    const nextIdx = (currentTrackIndex + 1) % currentPlaylist.length;
+    playFromList(currentPlaylist, nextIdx);
+  }
+
+  function prevTrack() {
+    if (currentPlaylist.length === 0) return;
+    const prevIdx = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    playFromList(currentPlaylist, prevIdx);
+  }
+
+  function closeAudioPlayer() {
+    audioEl.pause();
+    document.getElementById('audioBar').classList.remove('active');
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('searchWrapper').contains(e.target)) {
+      document.getElementById('searchDropdown').classList.remove('open');
+    }
+  });
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function updateProfileUI() {
+    document.getElementById('profileBtn').innerHTML = `${ICONS.user} <span class="btn-text-hide">${userChannel ? esc(userChannel) : 'Kirish'}</span>`;
+  }
+
+  async function loadVideos() {
+    const { data, error } = await db.from('videos').select('*').order('created_at', { ascending: false });
+    if (!error) allVideos = data || [];
+    const { data: sData } = await db.from('channel_subs').select('*');
+    if (sData) {
+      subCounts = {};
+      sData.forEach(row => subCounts[row.channel_name] = row.subscribers || 0);
+    }
+    renderCurrentView();
+  }
+
+  function onSmartSearch() {
+    const input = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const dd = document.getElementById('searchDropdown');
+    const rawQ = input.value.trim();
+    const q = rawQ.toLowerCase();
+
+    clearBtn.style.display = rawQ ? 'block' : 'none';
+
+    if (!rawQ) {
+      dd.classList.remove('open');
+      instantTracks = [];
+      if (currentView !== 'music') renderCurrentView();
+      return;
+    }
+
+    const matchedVideos = allVideos.filter(v =>
+      v.title.toLowerCase().includes(q) || v.author.toLowerCase().includes(q)
+    ).slice(0, 4);
+
+    renderDropdown(matchedVideos, instantTracks, rawQ);
+    if (currentView !== 'music') renderCurrentView();
+
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      try {
+        const [songRes, mvRes] = await Promise.all([
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(rawQ)}&media=music&entity=song&limit=14`),
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(rawQ)}&entity=musicVideo&limit=8`)
+        ]);
+        const songJson = await songRes.json();
+        const mvJson = await mvRes.json();
+
+        const clips = (mvJson.results || []).filter(t => t.previewUrl);
+        const songs = (songJson.results || []).filter(t => t.previewUrl);
+        instantTracks = [...clips, ...songs];
+
+        if (document.getElementById('searchInput').value.trim() === rawQ) {
+          renderDropdown(matchedVideos, instantTracks.slice(0, 6), rawQ);
+          if (currentView === 'music') {
+            globalTracks = instantTracks;
+            renderMusicGrid();
+          } else {
+            renderCurrentView();
+          }
+        }
+      } catch (e) {}
+    }, 250);
+  }
+
+  function renderDropdown(videos, tracks, rawQ) {
+    const dd = document.getElementById('searchDropdown');
+    let html = '';
+
+    if (videos.length > 0) {
+      html += `<div class="dd-label">Platforma Videolari & Shorts</div>`;
+      html += videos.map(v => `
+        <div class="dd-item" onclick="selectDropdownVideo('${v.id}')">
+          ${v.thumbnail_url
+            ? `<img class="dd-thumb" src="${v.thumbnail_url}" />`
+            : `<div class="dd-thumb" style="display:flex;align-items:center;justify-content:center;background:#1d1d2b;">▶</div>`}
+          <div style="min-width:0; flex:1;">
+            <div style="font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(v.title)}</div>
+            <div class="card-meta">${esc(v.author)} • ${v.views || 0} ko'rish</div>
+          </div>
+          <span class="dd-badge">${v.is_short ? 'SHORTS' : 'VIDEO'}</span>
+        </div>
+      `).join('');
+    }
+
+    if (tracks.length > 0) {
+      html += `<div class="dd-label">Kliplar, Anime OST & Musiqalar</div>`;
+      html += tracks.map((t, idx) => {
+        const isClip = t.kind === 'music-video';
+        return `
+          <div class="dd-item" onclick="selectDropdownMusic(${idx})">
+            <img class="dd-thumb" src="${t.artworkUrl100}" />
+            <div style="min-width:0; flex:1;">
+              <div style="font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(t.trackName)}</div>
+              <div class="card-meta">${esc(t.artistName)}</div>
+            </div>
+            <span class="dd-badge ${isClip ? 'clip' : 'music'}">${isClip ? '🎬 KLIP' : '▶ AUDIO'}</span>
+          </div>`;
+      }).join('');
+    }
+
+    if (!html) {
+      html = `<div style="padding:14px; text-align:center; color:#999; font-size:13px;">"${esc(rawQ)}" qidirilmoqda...</div>`;
+    }
+
+    dd.innerHTML = html;
+    dd.classList.add('open');
+  }
+
+  function selectDropdownVideo(id) {
+    document.getElementById('searchDropdown').classList.remove('open');
+    openVideo(id);
+  }
+
+  function selectDropdownMusic(idx) {
+    document.getElementById('searchDropdown').classList.remove('open');
+    playFromList(instantTracks, idx);
+  }
+
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    document.getElementById('searchDropdown').classList.remove('open');
+    instantTracks = [];
+    if (currentView === 'music') {
+      const gObj = MUSIC_GENRES.find(g => g.name === selectedGenre);
+      fetchGlobalMusic(gObj.query, gObj.isClipMode);
+    } else {
+      renderCurrentView();
+    }
+  }
+
+  async function fetchGlobalMusic(queryTerm, clipsOnly = false) {
+    const listBox = document.getElementById('musicResultsArea');
+    if (listBox) listBox.innerHTML = `<div class="empty">Kliplar va musiqalar yuklanmoqda...</div>`;
+    try {
+      if (clipsOnly) {
+        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(queryTerm)}&entity=musicVideo&limit=32`);
+        const json = await res.json();
+        globalTracks = (json.results || []).filter(t => t.previewUrl);
+      } else {
+        const [mvRes, songRes] = await Promise.all([
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(queryTerm)}&entity=musicVideo&limit=10`),
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(queryTerm)}&media=music&entity=song&limit=28`)
+        ]);
+        const mvJson = await mvRes.json();
+        const songJson = await songRes.json();
+        const clips = (mvJson.results || []).filter(t => t.previewUrl);
+        const songs = (songJson.results || []).filter(t => t.previewUrl);
+        globalTracks = [...clips, ...songs];
+      }
+      renderMusicGrid();
+    } catch (e) {
+      if (listBox) listBox.innerHTML = `<div class="empty">Internet bilan aloqani tekshiring.</div>`;
+    }
+  }
+
+  function quickPlayViral(queryTerm, label) {
+    document.getElementById('searchInput').value = label;
+    document.getElementById('clearSearchBtn').style.display = 'block';
+    fetchGlobalMusic(queryTerm, false);
+  }
+
+  function switchView(view, channelName = '', skipAutoFetch = false) {
+    currentView = view;
+    activeVideo = null;
+    activeChannel = channelName;
+    document.getElementById('searchDropdown').classList.remove('open');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    ['navHome', 'navShorts', 'navMusic', 'navSubs', 'navLiked', 'navSaved', 'navStudio', 'bHome', 'bShorts', 'bMusic', 'bSubs', 'bStudio'].forEach(id => {
+      document.getElementById(id)?.classList.remove('active');
+    });
+    const map = {
+      home: ['navHome','bHome'], shorts: ['navShorts','bShorts'], music: ['navMusic','bMusic'],
+      subs: ['navSubs','bSubs'], liked: ['navLiked'], saved: ['navSaved'], studio: ['navStudio','bStudio']
+    };
+    (map[view] || []).forEach(id => document.getElementById(id)?.classList.add('active'));
+
+    if (view === 'music') {
+      renderMusicPage();
+      if (!skipAutoFetch) {
+        const q = document.getElementById('searchInput').value.trim();
+        const gObj = MUSIC_GENRES.find(g => g.name === selectedGenre) || MUSIC_GENRES[0];
+        fetchGlobalMusic(q || gObj.query, !q && gObj.isClipMode);
+      }
+      return;
+    }
+    renderCurrentView();
+  }
+
+  function renderMusicPage() {
+    const main = document.getElementById('mainArea');
+    main.innerHTML = `
+      <div class="banner">
+        <div>
+          <h2 style="font-size:20px;">Musiqiy Kliplar, Anime OST, Motivatsiya & Phonk</h2>
+          <div class="card-meta" style="margin-top:4px;">Kliplar bilan tomosha qiling yoki Neon Studio pleyerda tinglang</div>
+        </div>
+      </div>
+
+      <!-- Video Klip Pleyeri (Klip bosilganda ochiladi) -->
+      <div class="clip-theater" id="clipTheaterBox">
+        <div class="clip-video-wrap">
+          <video id="clipVideoEl" controls playsinline></video>
+        </div>
+        <div class="clip-header">
+          <div>
+            <div id="clipTitle" style="font-size:18px; font-weight:800;">Klip nomi</div>
+            <div id="clipArtist" class="card-meta">Ijrochi</div>
+          </div>
+          <button class="btn btn-danger" onclick="closeClipTheater()">✕ Klipni yopish</button>
+        </div>
+      </div>
+
+      <div class="genre-bar">
+        ${MUSIC_GENRES.map(g => `
+          <button class="genre-chip ${selectedGenre === g.name ? 'active' : ''}" onclick="selectMusicGenre('${g.name}', '${g.query}', ${!!g.isClipMode})">${g.name}</button>
+        `).join('')}
+      </div>
+
+      <div class="tag-sec-label">🎌 BARCHA MASHHUR ANIME OST & OPENINGS:</div>
+      <div class="viral-row">
+        ${ANIME_HITS.map(a => `
+          <button class="anime-tag" onclick="quickPlayViral('${a.query}', '${a.label}')">🎌 ${a.label}</button>
+        `).join('')}
+      </div>
+
+      <div class="tag-sec-label">💪 MOTIVATSIYA & GYM XITLAR:</div>
+      <div class="viral-row">
+        ${MOTIVATION_HITS.map(m => `
+          <button class="motiv-tag" onclick="quickPlayViral('${m.query}', '${m.label}')">💪 ${m.label}</button>
+        `).join('')}
+      </div>
+
+      <div class="tag-sec-label">🔥 REK PHONK & EDIT XITLAR:</div>
+      <div class="viral-row">
+        ${VIRAL_EDIT_TRACKS.map(v => `
+          <button class="viral-tag" onclick="quickPlayViral('${v.query}', '${v.label}')">🔥 ${v.label}</button>
+        `).join('')}
+      </div>
+
+      <div id="musicResultsArea"></div>
+    `;
+  }
+
+  function selectMusicGenre(name, query, isClipMode) {
+    selectedGenre = name;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    renderMusicPage();
+    fetchGlobalMusic(query, isClipMode);
+  }
+
+  function renderMusicGrid() {
+    const area = document.getElementById('musicResultsArea');
+    if (!area) return;
+    if (globalTracks.length === 0) {
+      area.innerHTML = `<div class="empty">Bu so‘rov bo‘yicha natija topilmadi.</div>`;
+      return;
+    }
+    const curTrack = currentPlaylist[currentTrackIndex];
+    area.innerHTML = `<div class="music-grid">${globalTracks.map((t, i) => {
+      const isClip = t.kind === 'music-video';
+      const isPlayingThis = curTrack && curTrack.trackId === t.trackId && !audioEl.paused;
+      return `
+        <div class="music-card ${isPlayingThis ? 'playing' : ''}" style="animation-delay:${i * 0.02}s" onclick="playFromList(globalTracks, ${i})">
+          <div class="music-cover ${isClip ? 'is-clip' : ''}">
+            <img src="${t.artworkUrl100.replace('100x100', '400x400')}" alt="cover" />
+            ${isClip ? `<span class="clip-badge-card">🎬 KLIP</span>` : ''}
+            <div class="music-play-btn">${isPlayingThis ? ICONS.pause : ICONS.play}</div>
+          </div>
+          <div>
+            <div class="card-title" style="-webkit-line-clamp:1;">${esc(t.trackName)}</div>
+            <div class="card-meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(t.artistName)}</div>
+            <div style="font-size:11px; color:${isClip ? '#00d4ff' : '#ff4d79'}; margin-top:4px; font-weight:700;">
+              ${isClip ? 'Video Klip + Audio' : esc(t.primaryGenreName || selectedGenre)}
+            </div>
+          </div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  function formatDuration(sec) {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  function setCardDuration(videoEl, badgeId) {
+    const el = document.getElementById(badgeId);
+    if (el && videoEl.duration) el.textContent = formatDuration(videoEl.duration);
+  }
+
+  async function registerUniqueView(video) {
+    if (!video || viewedIds.includes(video.id)) return;
+    viewedIds.push(video.id);
+    localStorage.setItem('uztube_viewed', JSON.stringify(viewedIds));
+    const newViews = (video.views || 0) + 1;
+    video.views = newViews;
+    await db.from('videos').update({ views: newViews }).eq('id', video.id);
+  }
+
+  async function toggleLike(id) {
+    const v = allVideos.find(item => item.id === id) || activeVideo;
+    if (!v) return;
+    const alreadyLiked = likedIds.includes(id);
+    let updatedLikes = v.likes || 0;
+    if (alreadyLiked) {
+      likedIds = likedIds.filter(item => item !== id);
+      updatedLikes = Math.max(0, updatedLikes - 1);
+    } else {
+      likedIds.push(id);
+      updatedLikes += 1;
+    }
+    localStorage.setItem('uztube_liked', JSON.stringify(likedIds));
+    v.likes = updatedLikes;
+    if (activeVideo && activeVideo.id === id) activeVideo.likes = updatedLikes;
+    renderCurrentView();
+    await db.from('videos').update({ likes: updatedLikes }).eq('id', id);
+  }
+
+  async function toggleSub(author) {
+    const isSubbed = subs.includes(author);
+    let count = subCounts[author] || 0;
+    if (isSubbed) {
+      subs = subs.filter(c => c !== author);
+      count = Math.max(0, count - 1);
+      showToast('Obuna bekor qilindi');
+    } else {
+      subs.push(author);
+      count += 1;
+      showToast(`${author} kanaliga obuna bo‘ldingiz!`);
+    }
+    localStorage.setItem('uztube_subs', JSON.stringify(subs));
+    subCounts[author] = count;
+    renderCurrentView();
+    await db.from('channel_subs').upsert({ channel_name: author, subscribers: count });
+  }
+
+  function renderVideoGrid(videos) {
+    return `<div class="grid">${videos.map((v, idx) => `
+      <div class="card" style="animation-delay:${idx * 0.03}s" onclick="openVideo('${v.id}')">
+        <div class="thumb-wrap">
+          ${v.thumbnail_url
+            ? `<img src="${v.thumbnail_url}" alt="thumb" />`
+            : `<video src="${v.video_url}#t=0.5" preload="metadata" muted onloadedmetadata="setCardDuration(this, 'dur_${v.id}')"></video>`}
+          ${v.is_short ? `<span class="short-tag">SHORTS</span>` : ''}
+          <div class="play-hover"><div class="play-circle">${ICONS.play}</div></div>
+          <span class="duration-badge" id="dur_${v.id}">HD</span>
+        </div>
+        <div class="card-info">
+          <div class="avatar" onclick="event.stopPropagation(); switchView('channel', '${esc(v.author)}')">${esc(v.author[0] || 'U').toUpperCase()}</div>
+          <div style="min-width:0; flex:1;">
+            <div class="card-title">${esc(v.title)}</div>
+            <div class="card-meta" onclick="event.stopPropagation(); switchView('channel', '${esc(v.author)}')">${esc(v.author)}</div>
+            <div class="card-meta">${v.views || 0} marta ko‘rildi • ${new Date(v.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  function renderCurrentView() {
+    if (currentView === 'music') return;
+    if (currentView === 'watch' && activeVideo) return renderWatchPage();
+    if (currentView === 'studio') return renderStudio();
+
+    const main = document.getElementById('mainArea');
+    const rawQ = document.getElementById('searchInput').value.trim();
+    const q = rawQ.toLowerCase();
+
+    let list = allVideos.filter(v =>
+      v.title.toLowerCase().includes(q) || v.author.toLowerCase().includes(q)
+    );
+
+    if (sortBy === 'views') list.sort((a, b) => (b.views || 0) - (a.views || 0));
+    else if (sortBy === 'likes') list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+
+    let instantMusicBlock = '';
+    if (rawQ && instantTracks.length > 0 && currentView === 'home') {
+      instantMusicBlock = `
+        <div style="margin-bottom:28px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:16px;">Kliplar & Musiqa natijalari ("${esc(rawQ)}")</h3>
+            <button class="btn" onclick="switchView('music')">Barchasini ko‘rish →</button>
+          </div>
+          <div class="music-grid">
+            ${instantTracks.slice(0, 6).map((t, i) => {
+              const isClip = t.kind === 'music-video';
+              return `
+                <div class="music-card" onclick="playFromList(instantTracks, ${i})">
+                  <div class="music-cover ${isClip ? 'is-clip' : ''}">
+                    <img src="${t.artworkUrl100.replace('100x100', '300x300')}" alt="cover" />
+                    ${isClip ? `<span class="clip-badge-card">🎬 KLIP</span>` : ''}
+                    <div class="music-play-btn">${ICONS.play}</div>
+                  </div>
+                  <div>
+                    <div class="card-title" style="-webkit-line-clamp:1;">${esc(t.trackName)}</div>
+                    <div class="card-meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(t.artistName)}</div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (currentView === 'subs') {
+      const allAuthors = [...new Set(allVideos.map(v => v.author))];
+      const subVideos = list.filter(v => subs.includes(v.author));
+
+      if (subs.length === 0 || subVideos.length === 0) {
+        main.innerHTML = `
+          <div class="banner">
+            <div>
+              <h2 style="font-size:19px;">Obunalar bo‘limi</h2>
+              <div class="card-meta" style="margin-top:4px;">Yoqtirgan kanallaringizga obuna bo‘ling — ularning barcha videolari shu yerda chiqadi</div>
+            </div>
+          </div>
+          ${allAuthors.length === 0
+            ? `<div class="empty">Hali platformada kanallar yo‘q. Birinchi bo‘lib video joylang!</div>`
+            : `<h4 style="margin-bottom:12px;">Tavsiya etilgan kanallar</h4>
+               <div class="channels-grid">${allAuthors.map((author, i) => {
+                 const vCount = allVideos.filter(v => v.author === author).length;
+                 const cSubs = subCounts[author] || 0;
+                 const isSub = subs.includes(author);
+                 return `
+                   <div class="channel-card" style="animation-delay:${i * 0.04}s">
+                     <div class="avatar" style="width:58px; height:58px; font-size:24px; cursor:pointer;" onclick="switchView('channel', '${esc(author)}')">${esc(author[0] || 'U').toUpperCase()}</div>
+                     <div style="font-weight:800; font-size:16px; cursor:pointer;" onclick="switchView('channel', '${esc(author)}')">${esc(author)}</div>
+                     <div class="card-meta">${cSubs} obunachi • ${vCount} ta video</div>
+                     <button class="btn ${isSub ? 'subscribed' : 'btn-primary'}" onclick="toggleSub('${esc(author)}')">
+                       ${isSub ? `${ICONS.check} Obuna bo‘lingan` : 'Obuna bo‘lish'}
+                     </button>
+                   </div>`;
+               }).join('')}</div>`
+          }`;
+        return;
+      }
+
+      const storyBar = `
+        <div class="subs-bar">
+          ${subs.map(author => `
+            <div class="sub-story" onclick="switchView('channel', '${esc(author)}')">
+              <div class="sub-ring">
+                <div class="avatar" style="width:46px; height:46px; font-size:18px;">${esc(author[0] || 'U').toUpperCase()}</div>
+              </div>
+              <div class="sub-story-name">${esc(author)}</div>
+            </div>
+          `).join('')}
+        </div>`;
+
+      main.innerHTML = storyBar + renderVideoGrid(subVideos);
+      return;
+    }
+
+    let headerBanner = '';
+
+    if (currentView === 'shorts') {
+      list = list.filter(v => v.is_short);
+    } else if (currentView === 'liked') {
+      list = list.filter(v => likedIds.includes(v.id));
+    } else if (currentView === 'saved') {
+      list = list.filter(v => savedIds.includes(v.id));
+    } else if (currentView === 'channel') {
+      list = list.filter(v => v.author === activeChannel);
+      const cSubs = subCounts[activeChannel] || 0;
+      headerBanner = `
+        <div class="banner">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="avatar" style="width:54px; height:54px; font-size:22px;">${esc(activeChannel[0] || 'U').toUpperCase()}</div>
+            <div>
+              <h2 style="font-size:19px;">${esc(activeChannel)}</h2>
+              <div class="card-meta" style="margin-top:3px;"><b>${cSubs}</b> obunachi • <b>${list.length}</b> ta video</div>
+            </div>
+          </div>
+          <button class="btn ${subs.includes(activeChannel) ? 'subscribed' : 'btn-primary'}" onclick="toggleSub('${esc(activeChannel)}')">
+            ${subs.includes(activeChannel) ? `${ICONS.check} Obuna bo‘lingan` : 'Obuna bo‘lish'}
+          </button>
+        </div>`;
+    } else {
+      if (!rawQ) list = list.filter(v => !v.is_short);
+      headerBanner = `
+        <div class="toolbar">
+          <div style="font-size:16px; font-weight:800;">${rawQ ? `"${esc(rawQ)}" bo‘yicha natijalar` : 'Tavsiya etilgan videolar'}</div>
+          <select class="sort-select" onchange="sortBy=this.value; renderCurrentView();">
+            <option value="newest" ${sortBy==='newest'?'selected':''}>Yangi videolar</option>
+            <option value="views" ${sortBy==='views'?'selected':''}>Ko‘p ko‘rilganlar</option>
+            <option value="likes" ${sortBy==='likes'?'selected':''}>Eng ko‘p layk</option>
+          </select>
+        </div>`;
+    }
+
+    if (currentView === 'shorts') {
+      if (list.length === 0) { main.innerHTML = `<div class="empty">Shorts videolar topilmadi.</div>`; return; }
+      main.innerHTML = `<div class="shorts-feed">${list.map(v => `
+        <div class="short-card">
+          <video src="${v.video_url}" controls loop playsinline onplay="registerUniqueView(allVideos.find(x => x.id === '${v.id}'))"></video>
+          <div class="short-overlay">
+            <div class="card-title">${esc(v.title)}</div>
+            <div class="card-meta" style="cursor:pointer;" onclick="switchView('channel', '${esc(v.author)}')">@${esc(v.author)} • ${v.views || 0} ko'rish</div>
+            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn ${likedIds.includes(v.id) ? 'liked' : ''}" onclick="toggleLike('${v.id}')">${ICONS.like} ${v.likes || 0}</button>
+              <button class="btn" onclick="toggleSave('${v.id}')">${ICONS.save} ${savedIds.includes(v.id) ? 'Saqlangan' : 'Saqlash'}</button>
+              <button class="btn ${subs.includes(v.author) ? 'subscribed' : ''}" onclick="toggleSub('${esc(v.author)}')">
+                ${subs.includes(v.author) ? 'Obuna' : 'Obuna bo‘lish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('')}</div>`;
+      return;
+    }
+
+    if (list.length === 0 && !instantMusicBlock) {
+      main.innerHTML = headerBanner + `<div class="empty">Bu bo'limda videolar topilmadi.</div>`;
+      return;
+    }
+
+    main.innerHTML = headerBanner + instantMusicBlock + (list.length > 0 ? renderVideoGrid(list) : '');
+  }
+
+  function renderStudio() {
+    const main = document.getElementById('mainArea');
+    if (!userChannel) {
+      main.innerHTML = `<div class="empty">UzTube Studio'dan foydalanish uchun avval tepadan profil belgisini bosib kanal nomini kiriting.</div>`;
+      return;
+    }
+    const myVideos = allVideos.filter(v => v.author === userChannel);
+    const totalViews = myVideos.reduce((acc, v) => acc + (v.views || 0), 0);
+    const totalLikes = myVideos.reduce((acc, v) => acc + (v.likes || 0), 0);
+    const mySubs = subCounts[userChannel] || 0;
+
+    main.innerHTML = `
+      <div class="banner">
+        <div>
+          <h2 style="font-size:19px;">UzTube Studio — ${esc(userChannel)}</h2>
+          <div class="card-meta" style="margin-top:4px;">Kanalingiz statistikasi</div>
+        </div>
+        <button class="btn btn-primary" onclick="openUploadModal()">+ Video joylash</button>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="card-meta">Obunachilar</div><div class="stat-val">${mySubs}</div></div>
+        <div class="stat-card"><div class="card-meta">Jami ko‘rishlar</div><div class="stat-val">${totalViews}</div></div>
+        <div class="stat-card"><div class="card-meta">Jami layklar</div><div class="stat-val">${totalLikes}</div></div>
+        <div class="stat-card"><div class="card-meta">Videolar soni</div><div class="stat-val">${myVideos.length}</div></div>
+      </div>
+      ${myVideos.length === 0 ? `<div class="empty">Siz hali video yuklamagansiz.</div>` : `
+        <div class="table-wrap">
+          <table class="studio-table">
+            <thead>
+              <tr><th>Video</th><th>Ko'rish</th><th>Layk</th><th>Amal</th></tr>
+            </thead>
+            <tbody>
+              ${myVideos.map(v => `
+                <tr>
+                  <td><b>${esc(v.title)}</b> ${v.is_short ? '<span style="color:#ff0044; font-size:11px;">[Shorts]</span>' : ''}</td>
+                  <td>${v.views || 0}</td>
+                  <td>${v.likes || 0}</td>
+                  <td style="display:flex; gap:6px;">
+                    <button class="btn" onclick="openVideo('${v.id}')">Ko'rish</button>
+                    <button class="btn btn-danger" onclick="deleteVideo('${v.id}')">O'chirish</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    `;
+  }
+
+  async function deleteVideo(id) {
+    if (!confirm("Rostdan ham bu videoni o'chirmoqchimisiz?")) return;
+    await db.from('videos').delete().eq('id', id);
+    showToast('Video o‘chirildi');
+    loadVideos();
+  }
+
+  async function openVideo(id) {
+    const v = allVideos.find(item => item.id === id);
+    if (!v) return;
+    activeVideo = v;
+    currentView = 'watch';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    await registerUniqueView(v);
+    renderWatchPage();
+  }
+
+  async function renderWatchPage() {
+    const v = activeVideo;
+    const main = document.getElementById('mainArea');
+    const recommended = allVideos.filter(item => item.id !== v.id && !item.is_short).slice(0, 10);
+    const isLiked = likedIds.includes(v.id);
+    const cSubs = subCounts[v.author] || 0;
+
+    main.innerHTML = `
+      <div class="watch-layout ${theaterMode ? 'theater' : ''}">
+        <div style="min-width:0;">
+          <div class="player-wrap">
+            <div class="ambient-glow"></div>
+            <div class="player-box">
+              <video src="${v.video_url}" controls autoplay playsinline></video>
+            </div>
+          </div>
+          <div class="watch-title">${esc(v.title)}</div>
+          <div class="watch-bar">
+            <div class="channel-box" onclick="switchView('channel', '${esc(v.author)}')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="avatar">${esc(v.author[0] || 'U').toUpperCase()}</div>
+                <div>
+                  <div style="font-weight:700; font-size:14.5px;">${esc(v.author)}</div>
+                  <div class="card-meta">${cSubs} obunachi • ${v.views || 0} ko‘rish</div>
+                </div>
+              </div>
+              <button class="btn ${subs.includes(v.author) ? 'subscribed' : 'btn-primary'}" onclick="event.stopPropagation(); toggleSub('${esc(v.author)}')">
+                ${subs.includes(v.author) ? `${ICONS.check} Obuna` : 'Obuna bo‘lish'}
+              </button>
+            </div>
+            <div class="action-pills">
+              <button class="btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${v.id}')">${ICONS.like} ${v.likes || 0}</button>
+              <button class="btn" onclick="toggleSave('${v.id}')">${ICONS.save} ${savedIds.includes(v.id) ? 'Saqlangan' : 'Saqlash'}</button>
+              <button class="btn studio-btn-top" onclick="theaterMode=!theaterMode; renderWatchPage();">${ICONS.theater} Keng ekran</button>
+              <button class="btn" onclick="copyLink()">${ICONS.share} Ulashish</button>
+            </div>
+          </div>
+
+          <div class="comments-sec">
+            <h4 style="font-size:15px;">Izohlar</h4>
+            <div class="comment-form">
+              <input type="text" id="commentInput" placeholder="Izoh yozing..." onkeydown="if(event.key==='Enter') postComment('${v.id}')" />
+              <button class="btn btn-primary" onclick="postComment('${v.id}')">Yuborish</button>
+            </div>
+            <div id="commentsList">Yuklanmoqda...</div>
+          </div>
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:12px; font-size:15px;">Tavsiya etilgan videolar</h4>
+          ${recommended.map(r => `
+            <div class="rec-item" onclick="openVideo('${r.id}')">
+              <div class="rec-thumb">
+                ${r.thumbnail_url ? `<img src="${r.thumbnail_url}" />` : `<video src="${r.video_url}#t=0.5" preload="metadata" muted></video>`}
+              </div>
+              <div style="min-width:0; flex:1;">
+                <div style="font-size:13.5px; font-weight:700; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${esc(r.title)}</div>
+                <div class="card-meta">${esc(r.author)}</div>
+                <div class="card-meta">${r.views || 0} ko'rish</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    loadComments(v.id);
+  }
+
+  async function loadComments(videoId) {
+    const box = document.getElementById('commentsList');
+    const { data, error } = await db.from('comments').select('*').eq('video_id', videoId).order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) {
+      box.innerHTML = `<div class="card-meta">Hali izohlar yo'q. Birinchi bo'lib fikr bildiring!</div>`;
+      return;
+    }
+    box.innerHTML = data.map(c => `
+      <div class="comment-item">
+        <div class="avatar" style="width:32px; height:32px; font-size:13px;">${esc(c.author[0] || 'U').toUpperCase()}</div>
+        <div class="comment-body">
+          <div class="comment-header">
+            <div class="comment-author">${esc(c.author)} <span style="font-weight:400; color:#888; font-size:11px;">• ${new Date(c.created_at).toLocaleDateString()}</span></div>
+            ${c.author === userChannel ? `<button class="del-comment" onclick="deleteComment('${c.id}', '${videoId}')">O‘chirish</button>` : ''}
+          </div>
+          <div class="comment-text">${esc(c.content)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function postComment(videoId) {
+    if (!userChannel) return openProfileModal();
+    const input = document.getElementById('commentInput');
+    const text = input.value.trim();
+    if (!text) return;
+    await db.from('comments').insert([{ video_id: videoId, author: userChannel, content: text }]);
+    input.value = '';
+    loadComments(videoId);
+  }
+
+  async function deleteComment(commentId, videoId) {
+    await db.from('comments').delete().eq('id', commentId);
+    loadComments(videoId);
+  }
+
+  function onVideoSelected(input) {
+    if (input.files[0]) document.getElementById('vidFileName').textContent = '✓ ' + input.files[0].name;
+  }
+  function onThumbSelected(input) {
+    if (input.files[0]) document.getElementById('thumbFileName').textContent = '✓ Rasm: ' + input.files[0].name;
+  }
+
+  function analyzeVideoFile(file) {
+    return new Promise((resolve) => {
+      if (file.type.startsWith('audio/')) return resolve({ isShort: false, thumbBlob: null });
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.src = URL.createObjectURL(file);
+      video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 3); };
+      video.onseeked = () => {
+        const isShort = video.videoHeight > video.videoWidth;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => resolve({ isShort, thumbBlob: blob }), 'image/jpeg', 0.85);
+      };
+      video.onerror = () => resolve({ isShort: false, thumbBlob: null });
+    });
+  }
+
+  async function uploadVideo() {
+    if (!userChannel) return openProfileModal();
+    const title = document.getElementById('vidTitle').value.trim();
+    const genre = document.getElementById('vidGenre').value;
+    const file = document.getElementById('vidFile').files[0];
+    const thumb = document.getElementById('thumbFile').files[0];
+    const status = document.getElementById('uploadStatus');
+    const btn = document.getElementById('submitBtn');
+
+    if (!file) return showToast('Avval faylni tanlang!');
+    if (!title) return showToast('Tagiga nom yozing!');
+
+    btn.disabled = true;
+    status.textContent = 'Yuklanmoqda, kuting...';
+
+    const { isShort, thumbBlob: autoThumb } = await analyzeVideoFile(file);
+
+    const vName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const { error: vErr } = await db.storage.from('videos').upload(vName, file);
+    if (vErr) { status.textContent = 'Xato: ' + vErr.message; btn.disabled = false; return; }
+    const videoUrl = db.storage.from('videos').getPublicUrl(vName).data.publicUrl;
+
+    let thumbUrl = null;
+    const finalThumb = thumb || (!isShort ? autoThumb : null);
+    if (finalThumb) {
+      const tName = `thumb_${Date.now()}.jpg`;
+      const { error: tErr } = await db.storage.from('videos').upload(tName, finalThumb, { contentType: 'image/jpeg' });
+      if (!tErr) thumbUrl = db.storage.from('videos').getPublicUrl(tName).data.publicUrl;
+    }
+
+    await db.from('videos').insert([{
+      title, author: userChannel, video_url: videoUrl, thumbnail_url: thumbUrl, is_short: isShort, genre
+    }]);
+
+    btn.disabled = false;
+    status.textContent = '';
+    document.getElementById('vidTitle').value = '';
+    document.getElementById('vidFile').value = '';
+    document.getElementById('thumbFile').value = '';
+    document.getElementById('vidFileName').textContent = '1. Video yoki Qo‘shiqni tanlang';
+    document.getElementById('thumbFileName').textContent = '3. Ustiga rasm qo‘shish (ixtiyoriy)';
+    closeModals();
+    showToast(isShort ? 'Shorts joylandi!' : 'Muvaffaqiyatli joylandi!');
+    loadVideos();
+  }
+
+  function toggleSave(id) {
+    savedIds = savedIds.includes(id) ? savedIds.filter(i => i !== id) : [...savedIds, id];
+    localStorage.setItem('uztube_saved', JSON.stringify(savedIds));
+    showToast(savedIds.includes(id) ? 'Saqlanganlarga qo‘shildi' : 'Saqlanganlardan olindi');
+    renderCurrentView();
+  }
+
+  function openUploadModal() {
+    if (!userChannel) return openProfileModal();
+    document.getElementById('uploadModal').style.display = 'flex';
+  }
+  function openProfileModal() {
+    document.getElementById('channelNameInput').value = userChannel;
+    document.getElementById('profileModal').style.display = 'flex';
+  }
+  function closeModals() {
+    document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('profileModal').style.display = 'none';
+  }
+  function saveProfile() {
+    const val = document.getElementById('channelNameInput').value.trim();
+    if (!val) return showToast('Kanal nomini yozing!');
+    userChannel = val;
+    localStorage.setItem('uztube_channel', val);
+    updateProfileUI();
+    closeModals();
+    showToast(`Xush kelibsiz, ${val}!`);
+    renderCurrentView();
+  }
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href);
+    showToast('Havola nusxalandi!');
+  }
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  updateProfileUI();
+  loadVideos();
+</script>
+</body>
+</html>
